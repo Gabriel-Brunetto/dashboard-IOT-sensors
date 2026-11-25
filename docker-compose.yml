@@ -1,0 +1,27 @@
+# 3 nos identicos. Cada um tem API + pagina + armazenamento proprio (replicado entre si).
+# o ip do host que esta na rede do gateway precisa ser inserido .env (IP do seu computador na rede do gateway)
+x-no: &no
+  build: .
+  restart: "no"
+  environment: &env
+    PEERS: "1=no1:80,2=no2:80,3=no3:80"
+    PUBLIC: "1=${HOST_IP:?defina HOST_IP no .env}:8081,2=${HOST_IP}:8082,3=${HOST_IP}:8083" # enderecos que o gateway enxerga
+
+services:
+  no1:
+    <<: *no
+    environment: { <<: *env, NODE_ID: "1" }
+    ports: ["8081:80"]
+    volumes: ["dados1:/data"]
+  no2:
+    <<: *no
+    environment: { <<: *env, NODE_ID: "2" }
+    ports: ["8082:80"]
+    volumes: ["dados2:/data"]
+  no3:
+    <<: *no
+    environment: { <<: *env, NODE_ID: "3" }
+    ports: ["8083:80"]
+    volumes: ["dados3:/data"]
+
+volumes: { dados1: {}, dados2: {}, dados3: {} }
