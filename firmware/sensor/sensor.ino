@@ -1,37 +1,18 @@
-// sensor com dht (esp32, esp32u ou esp12e) que posta a leitura no ponto de acesso do gateway, 192.168.4.1
-// para escolher a estacao, deixe descomentada uma, e so uma, das tres linhas ESTACAO_ abaixo
+// estacao esp32-1: esp32 com dht22, posta a leitura no ponto de acesso do gateway, 192.168.4.1
 #include "DHT.h"
 #include "secrets.h"
+#include <WiFi.h>
+#include <HTTPClient.h>
 
-#ifdef ESP8266
-	#include <ESP8266WiFi.h>
-	#include <ESP8266HTTPClient.h>
-#else
-	#include <WiFi.h>
-	#include <HTTPClient.h>
-#endif
-
-#define ESTACAO_ESP32 // esp32 com dht22
-// #define ESTACAO_ESP32U // esp32u com dht22
-// #define ESTACAO_ESP12E // esp12e com dht11
+#define ESTACAO_ID "esp32-1"
+#define DHTTYPE DHT22
 
 // descomente para gerar leituras falsas, serve para testar a cadeia inteira sem o dht ligado
 // #define SIMULAR
 
-#if defined(ESTACAO_ESP32)
-	#define ESTACAO_ID "esp32-1"
-	#define DHTTYPE DHT22
-#elif defined(ESTACAO_ESP32U)
-	#define ESTACAO_ID "esp32u-2"
-	#define DHTTYPE DHT22
-#elif defined(ESTACAO_ESP12E)
-	#define ESTACAO_ID "esp12e-3"
-	#define DHTTYPE DHT11
-#endif
-
-// todos os sensores usam o gpio4, que no esp12e nodemcu e o rotulo D2 e no esp32 e o rotulo D4
-// o gpio2 nao serve no esp32, o led da placa o mantem em nivel baixo e o dht nunca responde
-#define DHTPIN 4
+// o fio de dados do dht fica no pino rotulado D5, que nesta placa e o gpio5 (confirmado por teste)
+// nao use o gpio2: o led da placa o mantem em nivel baixo e o dht nunca responde
+#define DHTPIN 5
 
 const char* URL_GATEWAY = "http://192.168.4.1/reading"; // ip fixo do ponto de acesso do d1
 const unsigned long INTERVALO_LEITURA = 5000;
