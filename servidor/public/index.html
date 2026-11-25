@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101923">
+  <title>Estações | Monitoramento IoT</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #101923;
+      color: #e7edf5;
+      font-synthesis: none;
+      --panel: #182431;
+      --panel-raised: #1d2b39;
+      --border: #2a3a49;
+      --muted: #9aabba;
+      --green: #57d69a;
+      --red: #ff777c;
+      --amber: #ffca70;
+      --blue: #70b7ff;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    button, select { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 34px 0 52px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 26px; }
+    .eyebrow { color: var(--blue); font-size: .75rem; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 7px 0 5px; font-size: clamp(1.7rem, 4vw, 2.35rem); letter-spacing: -.04em; }
+    .subtitle, .muted { color: var(--muted); }
+    .subtitle { margin: 0; }
+    .updated { color: var(--muted); font-size: .86rem; text-align: right; white-space: nowrap; padding-top: 7px; }
+    .banner { display: none; padding: 13px 16px; border: 1px solid; border-radius: 12px; margin: 0 0 18px; line-height: 1.5; }
+    .banner.show { display: block; }
+    .banner.warning { color: var(--amber); border-color: #765a2c; background: #382d1d; }
+    .banner.error { color: var(--red); border-color: #703b40; background: #352327; }
+    .banner.success { color: var(--green); border-color: #2e644d; background: #1d342b; }
+    .section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 28px 0 12px; }
+    h2 { margin: 0; font-size: 1.08rem; letter-spacing: -.015em; }
+    .section-note { color: var(--muted); font-size: .82rem; }
+    .grid { display: grid; gap: 12px; }
+    .node-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .card { min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
+    .node-card, .gateway-card { padding: 16px 18px; }
+    .node-card.leader { border-color: #3976a8; box-shadow: inset 0 0 0 1px #3976a8; }
+    .card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .card-title { font-weight: 700; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 4px 9px; font-size: .72rem; font-weight: 750; letter-spacing: .035em; white-space: nowrap; }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .badge.ok { color: var(--green); background: #1d382e; }
+    .badge.bad { color: var(--red); background: #3a2529; }
+    .badge.pending { color: var(--amber); background: #3c321f; }
+    .node-url, .card-meta { color: var(--muted); font-size: .84rem; margin-top: 10px; overflow-wrap: anywhere; }
+    .leader-label { color: var(--blue); font-size: .75rem; font-weight: 750; margin-top: 9px; text-transform: uppercase; letter-spacing: .08em; }
+    .gateway-layout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
+    .metric-label { color: var(--muted); font-size: .74rem; margin-bottom: 5px; }
+    .metric-value { font-size: .92rem; font-weight: 650; overflow-wrap: anywhere; }
+    .station-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
+    .station-card { padding: 18px; }
+    .station-card.inactive { border-color: #604145; }
+    .station-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 18px 0 14px; }
+    .reading { font-size: 1.22rem; font-weight: 750; letter-spacing: -.02em; }
+    .reading small { color: var(--muted); font-size: .77rem; font-weight: 500; }
+    .chart-wrap { height: 190px; position: relative; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .chart-legend { display: flex; gap: 16px; color: var(--muted); font-size: .76rem; margin: 5px 0 0 2px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-line { width: 15px; height: 3px; border-radius: 2px; background: var(--red); }
+    .legend-line.humidity { background: var(--blue); }
+    .empty { color: var(--muted); padding: 22px 4px; }
+    .events { list-style: none; padding: 0; margin: 0; overflow: hidden; }
+    .event { display: flex; gap: 12px; align-items: baseline; padding: 11px 15px; border-bottom: 1px solid var(--border); }
+    .event:last-child { border-bottom: 0; }
+    .event-time { color: var(--muted); font-size: .78rem; white-space: nowrap; }
+    .event-message { overflow-wrap: anywhere; font-size: .88rem; }
+    .toolbar { display: flex; align-items: center; gap: 8px; }
+    select { color: #e7edf5; border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 7px 10px; }
+    footer { color: var(--muted); font-size: .78rem; margin-top: 28px; }
+    @media (max-width: 650px) {
+      .shell { width: min(100% - 24px, 1180px); padding-top: 24px; }
+      header { display: block; }
+      .updated { text-align: left; padding-top: 12px; }
+      .gateway-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .station-stats { gap: 6px; }
+      .reading { font-size: 1.05rem; }
+      .section-heading { align-items: flex-start; }
+      .section-note { text-align: right; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">Sistema distribuído · sensores IoT</div>
+        <h1>Monitoramento de estações</h1>
+        <p class="subtitle">Estado do cluster, gateway e leituras em tempo real.</p>
+      </div>
+      <div class="updated" id="updated" aria-live="polite">Conectando aos nós…</div>
+    </header>
+
+    <div class="banner" id="connection-banner" role="status" aria-live="polite"></div>
+    <div class="banner warning" id="election-banner" role="status">Eleição em andamento. Aguardando a escolha do novo líder…</div>
+    <div class="banner warning" id="gateway-banner" role="status">Gateway sem resposta. As estações são exibidas como inativas até o gateway voltar.</div>
+
+    <section aria-labelledby="cluster-title">
+      <div class="section-heading">
+        <h2 id="cluster-title">Nós do cluster</h2>
+        <span class="section-note" id="cluster-meta">Aguardando estado do cluster</span>
+      </div>
+      <div class="grid node-grid" id="nodes"></div>
+    </section>
+
+    <section aria-labelledby="gateway-title">
+      <div class="section-heading"><h2 id="gateway-title">Gateway</h2></div>
+      <div class="card gateway-card" id="gateway"><div class="muted">Aguardando dados…</div></div>
+    </section>
+
+    <section aria-labelledby="stations-title">
+      <div class="section-heading">
+        <h2 id="stations-title">Estações</h2>
+        <div class="toolbar">
+          <label class="section-note" for="period">Período</label>
+          <select id="period" aria-label="Período dos gráficos">
+            <option value="300">Últimos 5 min</option>
+            <option value="3600" selected>Última 1 h</option>
+            <option value="21600">Últimas 6 h</option>
+            <option value="86400">Últimas 24 h</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid station-grid" id="stations"><div class="empty">Aguardando estações…</div></div>
+    </section>
+
+    <section aria-labelledby="events-title">
+      <div class="section-heading">
+        <h2 id="events-title">Eventos do nó</h2>
+        <span class="section-note" id="events-meta"></span>
+      </div>
+      <div class="card"><ul class="events" id="events"><li class="empty">Nenhum evento recebido.</li></ul></div>
+    </section>
+    <footer>Atualização automática a cada 2,5 segundos. Os gráficos usam o histórico fornecido pela API.</footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const $ = (selector) => document.querySelector(selector);
+    const chartData = new Map();
+    const chartUpdated = new Map();
+    const chartFailures = new Map();
+    const COLORS = { temp: "#ff777c", humidity: "#70b7ff", grid: "#30404f", text: "#9aabba" };
+    let activeApiBase = "";
+    let updating = false;
+    let previousLeader = undefined;
+
+    function apiBases() {
+      const current = new URL(location.href);
+      const bases = [];
+      if (current.protocol === "http:" || current.protocol === "https:") {
+        bases.push(current.origin);
+        for (const port of [8081, 8082, 8083]) {
+          const candidate = new URL(current.origin);
+          candidate.port = String(port);
+          if (!bases.includes(candidate.origin)) bases.push(candidate.origin);
+        }
+      }
+      return bases;
+    }
+
+    async function requestJson(path) {
+      let lastError = new Error("Nenhum nó configurado.");
+      const bases = apiBases();
+      if (activeApiBase && bases.includes(activeApiBase)) {
+        bases.splice(bases.indexOf(activeApiBase), 1);
+        bases.unshift(activeApiBase);
+      }
+      for (const base of bases) {
+        try {
+          const response = await fetch(`${base}/${path}`, {
+            cache: "no-store",
+            signal: AbortSignal.timeout(3500)
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          activeApiBase = base;
+          return data;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError;
+    }
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function badge(text, state) {
+      return element("span", `badge ${state}`, text);
+    }
+
+    function age(value) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+      const seconds = Math.max(0, Math.floor(Number(value)));
+      if (seconds < 60) return `${seconds} s`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ${Math.floor(seconds % 3600 / 60)} min`;
+      return `${Math.floor(seconds / 86400)} d`;
+    }
+
+    function timeOf(epoch) {
+      if (!Number.isFinite(Number(epoch))) return "—";
+      return new Date(Number(epoch) * 1000).toLocaleString("pt-BR");
+    }
+
+    function renderNodes(data) {
+      const container = $("#nodes");
+      container.replaceChildren();
+      const leaderNode = data.nodes.find((node) => node.id === data.leader);
+      const election = data.leader === null || !leaderNode || !leaderNode.alive;
+      $("#election-banner").classList.toggle("show", election);
+      $("#cluster-meta").textContent = `Líder conhecido: ${data.leader ?? "nenhum"} · Lamport deste nó: ${data.lamport ?? "—"}`;
+
+      for (const node of data.nodes) {
+        const card = element("article", `card node-card${node.leader ? " leader" : ""}`);
+        const top = element("div", "card-top");
+        top.append(element("span", "card-title", `Nó ${node.id}`));
+        top.append(badge(node.alive ? "VIVO" : "FORA", node.alive ? "ok" : "bad"));
+        card.append(top);
+        card.append(element("div", "node-url", node.url || "Endereço indisponível"));
+        if (node.leader) card.append(element("div", "leader-label", "Líder atual"));
+        container.append(card);
+      }
+      if (!data.nodes.length) container.append(element("div", "empty", "Nenhum nó listado pela API."));
+      if (previousLeader !== undefined && data.leader !== previousLeader && !election) {
+        showConnection(`Liderança alterada: nó ${data.leader} assumiu.`, "success");
+        window.setTimeout(() => {
+          const banner = $("#connection-banner");
+          if (banner.textContent.startsWith("Liderança alterada:")) banner.className = "banner";
+        }, 6000);
+      }
+      previousLeader = data.leader;
+    }
+
+    function renderGateway(gateway) {
+      $("#gateway-banner").classList.toggle("show", !gateway.alive);
+      const container = $("#gateway");
+      container.replaceChildren();
+      const top = element("div", "card-top");
+      top.append(element("span", "card-title", gateway.id || "Gateway ainda não identificado"));
+      top.append(badge(gateway.alive ? "RESPONDENDO" : "SEM RESPOSTA", gateway.alive ? "ok" : "bad"));
+      container.append(top);
+
+      const details = element("div", "gateway-layout");
+      const metrics = [
+        ["Endereço IP", gateway.ip || "—"],
+        ["Último lote", gateway.last_batch_age == null ? "Nunca" : `há ${age(gateway.last_batch_age)}`],
+        ["Último ping", gateway.last_ping_age == null ? "Nunca" : `há ${age(gateway.last_ping_age)}`],
+        ["Estado", gateway.alive ? "Gateway ativo" : "Estações consideradas inativas"]
+      ];
+      for (const [label, value] of metrics) {
+        const item = element("div");
+        item.append(element("div", "metric-label", label), element("div", "metric-value", value));
+        details.append(item);
+      }
+      container.append(details);
+    }
+
+    function renderStations(data) {
+      const container = $("#stations");
+      container.replaceChildren();
+      const canvases = new Map();
+      const stations = Array.isArray(data.esps) ? data.esps : [];
+      if (!stations.length) {
+        container.append(element("div", "empty", "Nenhuma estação foi recebida até agora. Inicie o gateway ou o simulador para enviar leituras."));
+        return canvases;
+      }
+
+      for (const station of stations) {
+        const active = Boolean(data.gateway?.alive && station.alive);
+        const card = element("article", `card station-card${active ? "" : " inactive"}`);
+        const top = element("div", "card-top");
+        top.append(element("span", "card-title", station.id));
+        top.append(badge(active ? "ATIVA" : "INATIVA", active ? "ok" : "bad"));
+        card.append(top);
+
+        const latest = Array.isArray(station.latest) ? station.latest[0] : null;
+        const stats = element("div", "station-stats");
+        const temp = element("div");
+        temp.append(element("div", "metric-label", "Temperatura"), element("div", "reading", latest ? `${latest.temp} ` : "— "));
+        temp.lastChild.append(element("small", "", "°C"));
+        const humidity = element("div");
+        humidity.append(element("div", "metric-label", "Umidade"), element("div", "reading", latest ? `${latest.umid} ` : "— "));
+        humidity.lastChild.append(element("small", "", "%"));
+        const seen = element("div");
+        seen.append(element("div", "metric-label", "Última leitura"), element("div", "metric-value", latest ? timeOf(latest.t) : "Sem leitura"));
+        stats.append(temp, humidity, seen);
+        card.append(stats);
+        card.append(element("div", "card-meta", `Última vez vista: ${station.last_seen_age == null ? "desconhecido" : `há ${age(station.last_seen_age)}`}${latest && latest.l != null ? ` · Lamport da leitura: ${latest.l}` : ""}`));
+
+        const chartWrap = element("div", "chart-wrap");
+        const canvas = element("canvas");
+        canvas.setAttribute("role", "img");
+        canvas.setAttribute("aria-label", `Gráfico de temperatura e umidade da estação ${station.id}`);
+        chartWrap.append(canvas);
+        card.append(chartWrap);
+        const legend = element("div", "chart-legend");
+        const tempLegend = element("span", "legend-item");
+        tempLegend.append(element("i", "legend-line"), document.createTextNode("Temperatura °C"));
+        const humidityLegend = element("span", "legend-item");
+        humidityLegend.append(element("i", "legend-line humidity"), document.createTextNode("Umidade %"));
+        legend.append(tempLegend, humidityLegend);
+        card.append(legend);
+        container.append(card);
+        canvases.set(station.id, canvas);
+      }
+      return canvases;
+    }
+
+    async function updateChart(id, canvas) {
+      const period = Number($("#period").value);
+      const now = Date.now() / 1000;
+      const lastUpdate = chartUpdated.get(id) || 0;
+      if (!chartData.has(id) || now - lastUpdate >= 20) {
+        chartUpdated.set(id, now);
+        try {
+          const from = Math.floor(now - period);
+          const history = await requestJson(`history.php?esp=${encodeURIComponent(id)}&from=${from}&limit=2000`);
+          chartData.set(id, Array.isArray(history.readings) ? history.readings : []);
+          chartFailures.delete(id);
+        } catch (error) {
+          chartFailures.set(id, error.message || "falha na consulta");
+        }
+      }
+      drawChart(canvas, chartData.get(id) || [], chartFailures.get(id));
+    }
+
+    function drawChart(canvas, readings, error) {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * ratio);
+      canvas.height = Math.round(rect.height * ratio);
+      const context = canvas.getContext("2d");
+      context.scale(ratio, ratio);
+      const width = rect.width;
+      const height = rect.height;
+      const pad = { top: 12, right: 38, bottom: 28, left: 38 };
+      const plotWidth = width - pad.left - pad.right;
+      const plotHeight = height - pad.top - pad.bottom;
+      context.clearRect(0, 0, width, height);
+      context.font = "11px system-ui, sans-serif";
+      context.lineWidth = 1;
+
+      if (error && !readings.length) {
+        context.fillStyle = COLORS.text;
+        context.textAlign = "center";
+        context.fillText("Falha ao carregar o histórico", width / 2, height / 2 - 7);
+        context.fillText(error, width / 2, height / 2 + 11);
+        return;
+      }
+      if (!readings.length) {
+        context.fillStyle = COLORS.text;
+        context.textAlign = "center";
+        context.fillText("Sem histórico para este período", width / 2, height / 2);
+        return;
+      }
+
+      const temperatures = readings.map((reading) => Number(reading.temp)).filter(Number.isFinite);
+      const minTemp = Math.floor(Math.min(...temperatures) - 1);
+      const maxTemp = Math.ceil(Math.max(...temperatures) + 1);
+      const tempRange = Math.max(2, maxTemp - minTemp);
+      const firstTime = Number(readings[0].t);
+      const lastTime = Number(readings[readings.length - 1].t);
+      const timeRange = Math.max(1, lastTime - firstTime);
+      const x = (reading) => pad.left + (Number(reading.t) - firstTime) / timeRange * plotWidth;
+      const yTemp = (value) => pad.top + (maxTemp - Number(value)) / tempRange * plotHeight;
+      const yHumidity = (value) => pad.top + (100 - Number(value)) / 100 * plotHeight;
+
+      context.textAlign = "right";
+      context.textBaseline = "middle";
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + plotHeight * i / 4;
+        context.strokeStyle = COLORS.grid;
+        context.beginPath();
+        context.moveTo(pad.left, y);
+        context.lineTo(width - pad.right, y);
+        context.stroke();
+        context.fillStyle = COLORS.text;
+        context.fillText(`${Math.round(maxTemp - tempRange * i / 4)}°`, pad.left - 7, y);
+      }
+      context.textAlign = "left";
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + plotHeight * i / 4;
+        context.fillStyle = COLORS.text;
+        context.fillText(`${100 - i * 25}%`, width - pad.right + 7, y);
+      }
+      context.textAlign = "center";
+      context.textBaseline = "top";
+      context.fillStyle = COLORS.text;
+      context.fillText(new Date(firstTime * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), pad.left, height - 19);
+      context.fillText(new Date(lastTime * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), width - pad.right, height - 19);
+
+      for (const [field, color, y] of [["temp", COLORS.temp, yTemp], ["umid", COLORS.humidity, yHumidity]]) {
+        const points = readings.filter((reading) => Number.isFinite(Number(reading[field])));
+        if (!points.length) continue;
+        context.beginPath();
+        points.forEach((reading, index) => {
+          const px = x(reading);
+          const py = y(reading[field]);
+          if (index === 0) context.moveTo(px, py);
+          else context.lineTo(px, py);
+        });
+        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.lineJoin = "round";
+        context.stroke();
+      }
+    }
+
+    function renderEvents(data) {
+      const events = Array.isArray(data.events) ? data.events : [];
+      const list = $("#events");
+      list.replaceChildren();
+      $("#events-meta").textContent = `Recebidos do nó ${data.node}`;
+      if (!events.length) {
+        const item = element("li", "empty", "Nenhum evento registrado neste nó.");
+        list.append(item);
+        return;
+      }
+      for (const event of events) {
+        const item = element("li", "event");
+        item.append(element("time", "event-time", new Date(Number(event.t) * 1000).toLocaleTimeString("pt-BR")));
+        item.append(element("span", "event-message", event.msg || "Evento sem descrição"));
+        list.append(item);
+      }
+    }
+
+    function showConnection(message, state) {
+      const banner = $("#connection-banner");
+      banner.textContent = message;
+      banner.className = `banner show ${state}`;
+    }
+
+    async function refresh() {
+      if (updating) return;
+      updating = true;
+      try {
+        const data = await requestJson("status.php");
+        if (!data || !Array.isArray(data.nodes) || !data.gateway) throw new Error("Resposta de status inválida.");
+        renderNodes(data);
+        renderGateway(data.gateway);
+        const canvases = renderStations(data);
+        renderEvents(data);
+        const leader = data.leader === null ? "eleição em andamento" : `líder ${data.leader}`;
+        $("#updated").textContent = `API pelo nó ${data.node} · ${leader} · atualizado às ${new Date().toLocaleTimeString("pt-BR")}`;
+        if (!$("#connection-banner").classList.contains("success")) $("#connection-banner").className = "banner";
+        await Promise.all([...canvases].map(([id, canvas]) => updateChart(id, canvas)));
+      } catch {
+        showConnection("Não foi possível consultar os nós. Tentando novamente automaticamente…", "error");
+        $("#updated").textContent = "Sem conexão com os nós";
+      } finally {
+        updating = false;
+      }
+    }
+
+    $("#period").addEventListener("change", () => {
+      chartUpdated.clear();
+      refresh();
+    });
+    window.addEventListener("resize", () => {
+      for (const canvas of document.querySelectorAll("canvas")) {
+        const stationCard = canvas.closest(".station-card");
+        if (stationCard) {
+          const id = stationCard.querySelector(".card-title").textContent;
+          drawChart(canvas, chartData.get(id) || [], chartFailures.get(id));
+        }
+      }
+    });
+    refresh();
+    window.setInterval(refresh, 2500);
+  </script>
+</body>
+</html>

@@ -3,11 +3,30 @@
 `verificar.py` testa o cluster de 3 nós **que já está rodando**. Só usa a biblioteca padrão do Python 3 e precisa de `docker` ou `podman`.
 
 ```bash
-docker compose up --build -d          # sobe os 3 nós a partir da raiz do projeto (precisa do .env com HOST_IP)
+cp .env.example .env                  # edite HOST_IP com o IP deste computador na rede local
+docker compose up --build -d          # sobe os 3 nós e serve o painel nas portas 8081, 8082 e 8083
+```
+
+Abra <http://localhost:8081> para ver o painel. Em outro terminal, inicie o simulador substituindo `SEU_IP_LOCAL` pelo endereço configurado em `HOST_IP`:
+
+```bash
+python3 testes/simular.py
+```
+
+O simulador usa o `HOST_IP` do `.env` para que os containers respondam ao ping do gateway simulado. Se necessário, informe o endereço explicitamente com `--ip SEU_IP_LOCAL`. Não rode o simulador junto com o gateway D1 real. Para rodar os testes automatizados, pare o simulador com `Ctrl+C` antes de executar:
+
+```bash
 python3 testes/verificar.py           # roda os testes (não precisa de hardware)
 python3 testes/verificar.py --hardware   # inclui o que depende do gateway D1 e de um sensor reais ligados
 ```
-Termina com código 0 se tudo passou e 1 se algo falhou. Opções: `--manter` não remove a estação de teste no final; a variável `RUNTIME=docker` ou `RUNTIME=podman` força qual dos dois usar.
+
+Os testes terminam com código 0 se tudo passou e 1 se algo falhou. `--manter` não remove a estação de teste no final; a variável `RUNTIME=docker` ou `RUNTIME=podman` força qual dos dois usar.
+
+Para testar estações que ficam inativas, inicie o simulador com `--instavel`. Para parar, use `Ctrl+C`; para remover as leituras simuladas e reiniciar os nós, rode `python3 testes/simular.py --limpar`. O simulador aceita `--estacoes N`, `--intervalo S`, `--historico M`, `--ciclos N` e `--host H`; `python3 testes/simular.py --help` lista todas as opções.
+
+Para demonstrar uma eleição, deixe o cluster e o simulador rodando e execute `docker compose stop no3`; depois, `docker compose start no3`. O painel mostra o aviso de eleição enquanto o nó 2 assume e o nó 3 retorna.
+
+O HTML-fonte do painel fica em `index.html` na raiz; o Dockerfile o copia para a pasta pública de cada nó. Após alterá-lo, atualize os containers com `docker compose up --build -d`. Para desligar o cluster, use `docker compose down`. Os dados permanecem nos volumes; `docker compose down -v` também os apaga.
 
 ## O que é verificado
 | Grupo | Verificações |
