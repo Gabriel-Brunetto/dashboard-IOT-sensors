@@ -1,7 +1,6 @@
 FROM php:8.3-cli-alpine
 WORKDIR /app
 COPY servidor/ /app/
-COPY /app/public/index.html /app/public/index.html
 ENV PHP_CLI_SERVER_WORKERS=4 DATA_DIR=/data
 VOLUME /data
 EXPOSE 80
